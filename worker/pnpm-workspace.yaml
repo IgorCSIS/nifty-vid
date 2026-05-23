@@ -1,0 +1,10 @@
+# Same purpose as web/pnpm-workspace.yaml: pre-approve install scripts so
+# pnpm 11+ doesn't break the dev flow.
+#
+# esbuild is a transitive dep of wrangler. workerd is the Cloudflare Workers
+# runtime: wrangler downloads the platform-specific binary via this script.
+# Without the approval, `pnpm install` exits non-zero and `wrangler dev`
+# can't start.
+onlyBuiltDependencies:
+  - esbuild
+  - workerd

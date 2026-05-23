@@ -163,12 +163,12 @@ async function submitJob(
   //  quality, scheduler, flow_shift, frame_multiplier, safe_mode, play_result_video]
   const data = [
     inputImage,
-    null, // last_image — optional second keyframe, we don't expose this in the UI
+    null, // last_image, optional second keyframe, we don't expose this in the UI
     params.prompt?.trim() || "make this image come alive, cinematic motion, smooth animation",
     clampInt(params.steps ?? 6, 1, 12),
     DEFAULT_NEGATIVE_PROMPT,
     clampFloat(params.duration_seconds ?? 3.5, 0.5, 10),
-    1,    // guidance_scale (kept at 1 — higher values double GPU usage for marginal gains here)
+    1,    // guidance_scale (kept at 1, higher values double GPU usage for marginal gains here)
     1,    // guidance_scale_2
     42,   // seed (ignored when randomize_seed=true)
     true, // randomize_seed
@@ -252,7 +252,7 @@ async function awaitResult(eventId: string, env: Env): Promise<string> {
         const msg = safeJsonParse(event.data);
         throw new Error(typeof msg === "string" ? msg : "Upstream error.");
       }
-      // Other events ("generating", "heartbeat") we ignore — they're useful for
+      // Other events ("generating", "heartbeat") we ignore, they're useful for
       // a streaming UI but we're doing single-shot for now.
     }
   }
@@ -284,7 +284,7 @@ function parseSseEvent(raw: string): { name: string; data: string } | null {
 function extractVideoUrl(fileData: unknown, env: Env): string | null {
   if (!fileData) return null;
   if (typeof fileData === "string") {
-    // Bare string path — synthesize the absolute URL.
+    // Bare string path, synthesize the absolute URL.
     return `${env.HF_SPACE_BASE}/gradio_api/file=${fileData}`;
   }
   if (typeof fileData === "object") {

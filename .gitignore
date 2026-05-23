@@ -1,4 +1,4 @@
-# Dependency directories — never commit
+# Dependency directories, never commit
 node_modules/
 .pnpm-store/
 

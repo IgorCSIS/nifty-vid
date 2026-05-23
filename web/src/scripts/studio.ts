@@ -1,5 +1,5 @@
 /**
- * studio.ts — client-side wiring for the NiftyVid generator.
+ * studio.ts, client-side wiring for the NiftyVid generator.
  *
  * Lifecycle:
  *   1. User drops or picks an image. We preview it and stash the File object.
@@ -22,7 +22,7 @@ const WORKER_URL = import.meta.env.PUBLIC_WORKER_URL || "http://localhost:8787";
 
 // ---------- DOM lookup helpers ----------
 
-// querySelector with non-null assertion — every selector below is in our own
+// querySelector with non-null assertion, every selector below is in our own
 // HTML, so a missing element is a bug, not a runtime case we need to handle.
 // Throwing early is more helpful than a silent null.
 const $ = <T extends Element>(sel: string, root: ParentNode = document): T => {
@@ -55,7 +55,7 @@ const historyList  = $<HTMLUListElement>("[data-history]");
 // ---------- Local state ----------
 
 // Kept in a tiny mutable object so handlers can read/write it without
-// chasing globals. For one screen this is fine — a state machine would
+// chasing globals. For one screen this is fine, a state machine would
 // be overkill.
 const state = {
   file: null as File | null,
@@ -222,11 +222,11 @@ generateBtn.addEventListener("click", async () => {
     setStatus("Done. Saved a thumb in history below.", "success");
     addToHistory(video_url);
   } catch (err) {
-    // Surface the upstream message verbatim — for a single-purpose tool, the
+    // Surface the upstream message verbatim, for a single-purpose tool, the
     // actual failure ("queue full", "Space sleeping", "image too large") is
     // far more useful than a generic "something went wrong".
     const msg = err instanceof Error ? err.message : String(err);
-    setStatus(`Failed: ${msg}. You can try again — long generations sometimes time out.`, "error");
+    setStatus(`Failed: ${msg}. You can try again, long generations sometimes time out.`, "error");
     showResultState("empty");
   } finally {
     stopMessages();
@@ -286,7 +286,7 @@ function addToHistory(url: string) {
   v.loop = true;
   v.playsInline = true;
   v.className = "w-32 h-20 object-cover";
-  // Show a frame on hover. Cheap UX win — no thumbnailing required.
+  // Show a frame on hover. Cheap UX win, no thumbnailing required.
   li.addEventListener("mouseenter", () => v.play().catch(() => {}));
   li.addEventListener("mouseleave", () => {
     v.pause();

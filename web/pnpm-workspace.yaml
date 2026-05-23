@@ -1,0 +1,16 @@
+allowBuilds:
+  esbuild: true
+  sharp: true
+# pnpm 11+ moved several settings out of package.json. This file is the new
+# canonical home for the "which packages may run install scripts" allowlist.
+# Even though we're not using pnpm workspaces, the file is still where this
+# setting lives.
+#
+# esbuild and sharp both ship native binaries via postinstall scripts. They
+# are well-known, widely used packages: esbuild is the bundler Vite/Astro use
+# under the hood, sharp is the image processor Astro uses for image
+# optimization. Pre-approving them here means `pnpm install` won't exit
+# non-zero with ERR_PNPM_IGNORED_BUILDS and `pnpm dev` won't break.
+onlyBuiltDependencies:
+  - esbuild
+  - sharp

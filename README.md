@@ -8,8 +8,8 @@ Part of the [NiftyAi](https://github.com/IgorCSIS/niftyai-portfolio) project fam
 
 NiftyVid is two pieces glued together:
 
-1. **`web/`** — a static Astro + Tailwind site that lives on GitHub Pages. It's the UI: dropzone, prompt input, video preview.
-2. **`worker/`** — a Cloudflare Worker that takes requests from the site and forwards them to a public Hugging Face Space running the Wan 2.2 image-to-video model.
+1. **`web/`**, a static Astro + Tailwind site that lives on GitHub Pages. It's the UI: dropzone, prompt input, video preview.
+2. **`worker/`**, a Cloudflare Worker that takes requests from the site and forwards them to a public Hugging Face Space running the Wan 2.2 image-to-video model.
 
 We need the Worker as a middleman for two reasons. First, browsers can't usually call HF Spaces directly because of CORS. Second, the Worker is a stable URL we control, which means if the upstream Space ever moves or breaks, we only swap one file instead of redeploying the whole site.
 

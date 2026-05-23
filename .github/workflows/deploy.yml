@@ -1,5 +1,5 @@
 # Builds the Astro site in `web/` and deploys it to GitHub Pages on every push to main.
-# The Worker is deployed separately via `wrangler deploy` — this workflow only handles the static site.
+# The Worker is deployed separately via `wrangler deploy`, this workflow only handles the static site.
 
 name: Deploy site to Pages
 

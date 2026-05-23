@@ -128,7 +128,7 @@
         <a data-download class="btn-ghost hidden" download>Download MP4</a>
       </div>
 
-      <!-- In-session history. Cleared on reload — we deliberately don't persist
+      <!-- In-session history. Cleared on reload, we deliberately don't persist
            anything to localStorage to keep this simple and private. -->
       <div data-history-wrap class="hidden">
         <p class="text-xs uppercase tracking-wider text-slate-500 mb-2">This session</p>
@@ -140,6 +140,6 @@
 
 <script>
   // Ship the studio's interaction logic. Astro bundles, minifies, and inlines
-  // this for us — we don't have to wire up a separate build step.
+  // this for us, we don't have to wire up a separate build step.
   import "@/scripts/studio";
 </script>

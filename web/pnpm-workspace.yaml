@@ -1,16 +1,22 @@
-allowBuilds:
-  esbuild: true
-  sharp: true
-# pnpm 11+ moved several settings out of package.json. This file is the new
-# canonical home for the "which packages may run install scripts" allowlist.
-# Even though we're not using pnpm workspaces, the file is still where this
-# setting lives.
+# pnpm 11 treats this file as a workspace declaration and refuses to run
+# without a `packages` field, even when we just want to use the file for
+# allowlist settings. Declaring the current directory as a single-package
+# "workspace of one" satisfies pnpm without changing how we actually develop.
+packages:
+  - .
+
+# allowBuilds is what `pnpm approve-builds` writes when you accept a package's
+# install scripts. onlyBuiltDependencies is the same idea in the older format,
+# kept for compatibility. Together they cover both pnpm 10 and 11 readers.
 #
-# esbuild and sharp both ship native binaries via postinstall scripts. They
-# are well-known, widely used packages: esbuild is the bundler Vite/Astro use
+# esbuild and sharp ship native binaries via postinstall scripts. They are
+# well-known, widely used packages: esbuild is the bundler Vite/Astro use
 # under the hood, sharp is the image processor Astro uses for image
 # optimization. Pre-approving them here means `pnpm install` won't exit
 # non-zero with ERR_PNPM_IGNORED_BUILDS and `pnpm dev` won't break.
+allowBuilds:
+  esbuild: true
+  sharp: true
 onlyBuiltDependencies:
   - esbuild
   - sharp

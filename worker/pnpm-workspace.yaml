@@ -1,10 +1,18 @@
-# Same purpose as web/pnpm-workspace.yaml: pre-approve install scripts so
-# pnpm 11+ doesn't break the dev flow.
+# pnpm 11 demands a `packages` field whenever this file exists, so we declare
+# the current directory as a single-package workspace. Without this, CI fails
+# with "packages field missing or empty" before it even starts installing.
+packages:
+  - .
+
+# Pre-approve install scripts so pnpm 11+ doesn't break the dev flow.
 #
 # esbuild is a transitive dep of wrangler. workerd is the Cloudflare Workers
 # runtime: wrangler downloads the platform-specific binary via this script.
 # Without the approval, `pnpm install` exits non-zero and `wrangler dev`
 # can't start.
+allowBuilds:
+  esbuild: true
+  workerd: true
 onlyBuiltDependencies:
   - esbuild
   - workerd

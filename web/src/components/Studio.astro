@@ -1,0 +1,145 @@
+---
+// The core interactive area: image upload, prompt, generate button, video preview, history.
+//
+// The structure is intentionally plain HTML with data-* hooks. The client-side
+// behavior lives in `src/scripts/studio.ts`, attached at the bottom of this file
+// via `<script>`. Astro will bundle and ship that script automatically.
+//
+// We could reach for React or another framework here, but for one page with one
+// form, vanilla TS is lighter, faster to load, and easier for a learner to read
+// top to bottom without framework noise.
+---
+
+<section class="mx-auto max-w-6xl px-6 pb-24" id="studio">
+  <div class="grid lg:grid-cols-2 gap-8">
+    <!-- LEFT COLUMN: inputs -->
+    <div class="space-y-5">
+      <div>
+        <label class="block text-sm font-medium text-slate-300 mb-2">
+          1. Source image
+        </label>
+        <!-- The dropzone is a label so clicking it opens the file picker.
+             The actual <input> is hidden but still keyboard-accessible. -->
+        <label class="dropzone group" data-dropzone>
+          <input
+            type="file"
+            accept="image/png, image/jpeg, image/webp"
+            class="sr-only"
+            data-file-input
+          />
+          <div class="text-center px-6 py-10" data-dropzone-empty>
+            <svg viewBox="0 0 24 24" class="w-10 h-10 mx-auto text-slate-500 group-hover:text-mint-dim transition" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 7.5m0 0L7.5 12M12 7.5v9" />
+            </svg>
+            <p class="mt-3 text-slate-400">
+              Drop an image or <span class="text-mint-glow underline">browse</span>
+            </p>
+            <p class="mt-1 text-xs text-slate-500">PNG, JPG, or WEBP &middot; max 8 MB</p>
+          </div>
+          <!-- Preview shown after upload. Hidden until JS swaps it in. -->
+          <img data-dropzone-preview class="hidden max-h-[280px] rounded-lg object-contain" alt="" />
+        </label>
+      </div>
+
+      <div>
+        <label for="prompt" class="block text-sm font-medium text-slate-300 mb-2">
+          2. Prompt
+        </label>
+        <textarea
+          id="prompt"
+          rows="3"
+          data-prompt
+          class="w-full rounded-md bg-ink-800 border border-ink-700 text-slate-100 placeholder-slate-500
+                 px-4 py-3 outline-none transition resize-y
+                 focus:border-mint focus:ring-2 focus:ring-mint/30"
+          placeholder="A gentle camera pan to the right, the leaves drift slowly..."
+        ></textarea>
+        <p class="mt-1 text-xs text-slate-500">
+          Describe motion and camera, not just what's in the frame. The model already sees the image.
+        </p>
+      </div>
+
+      <details class="rounded-md border border-ink-700 bg-ink-800/60">
+        <summary class="cursor-pointer select-none px-4 py-3 text-sm text-slate-300 hover:text-slate-100">
+          Advanced options
+        </summary>
+        <div class="px-4 pb-4 pt-1 space-y-4">
+          <div>
+            <label class="flex items-center justify-between text-sm text-slate-400">
+              <span>Duration</span>
+              <span data-duration-value class="font-mono text-mint-glow">3.5s</span>
+            </label>
+            <input
+              type="range"
+              min="0.5" max="10" step="0.1" value="3.5"
+              data-duration
+              class="w-full accent-mint"
+            />
+          </div>
+          <div>
+            <label class="flex items-center justify-between text-sm text-slate-400">
+              <span>Inference steps</span>
+              <span data-steps-value class="font-mono text-mint-glow">6</span>
+            </label>
+            <input
+              type="range"
+              min="1" max="12" step="1" value="6"
+              data-steps
+              class="w-full accent-mint"
+            />
+            <p class="mt-1 text-xs text-slate-500">More steps = better quality but slower.</p>
+          </div>
+        </div>
+      </details>
+
+      <div class="flex items-center gap-3">
+        <button data-generate class="btn-primary" disabled>
+          <span class="pulse-dot hidden" data-spinner></span>
+          <span data-button-label>Generate video</span>
+        </button>
+        <p class="text-xs text-slate-500" data-status>
+          Add an image to start.
+        </p>
+      </div>
+    </div>
+
+    <!-- RIGHT COLUMN: output -->
+    <div class="space-y-5">
+      <label class="block text-sm font-medium text-slate-300">
+        3. Result
+      </label>
+
+      <!-- Three mutually exclusive states managed by the script: empty, loading, ready. -->
+      <div class="rounded-xl border border-ink-700 bg-ink-800/60 overflow-hidden min-h-[280px]">
+        <div data-result-empty class="grid place-items-center h-full min-h-[280px] text-slate-500 text-sm">
+          Generated video will appear here.
+        </div>
+        <div data-result-loading class="hidden grid place-items-center h-full min-h-[280px] text-slate-400 text-sm">
+          <div class="text-center">
+            <div class="pulse-dot mx-auto mb-3"></div>
+            <p data-loading-message>Warming up the GPU...</p>
+            <p class="text-xs text-slate-500 mt-1">First call cold-starts the Space, which can take a minute or two.</p>
+          </div>
+        </div>
+        <video data-result-video controls class="hidden w-full" preload="metadata"></video>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <a data-download class="btn-ghost hidden" download>Download MP4</a>
+      </div>
+
+      <!-- In-session history. Cleared on reload — we deliberately don't persist
+           anything to localStorage to keep this simple and private. -->
+      <div data-history-wrap class="hidden">
+        <p class="text-xs uppercase tracking-wider text-slate-500 mb-2">This session</p>
+        <ul data-history class="flex gap-3 overflow-x-auto pb-1"></ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  // Ship the studio's interaction logic. Astro bundles, minifies, and inlines
+  // this for us — we don't have to wire up a separate build step.
+  import "@/scripts/studio";
+</script>

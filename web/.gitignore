@@ -1,0 +1,7 @@
+# web/ specific ignores. The root .gitignore covers most of this, but having
+# a local one keeps things tidy if someone runs commands from inside web/.
+node_modules/
+dist/
+.astro/
+.env
+.env.local

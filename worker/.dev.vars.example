@@ -1,0 +1,5 @@
+# Example local secrets. Copy to `.dev.vars` (which is gitignored) when needed.
+# Today the Worker doesn't require secrets because the HF Space is public.
+# When we swap to a paid backend (fal.ai, Replicate) we'll add the API key here.
+#
+# FAL_KEY=your-fal-key-here

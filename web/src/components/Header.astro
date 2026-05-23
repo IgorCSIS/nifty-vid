@@ -1,0 +1,40 @@
+---
+// Top navigation. Minimal on purpose: brand mark on the left, a portfolio
+// link on the right. The hire-me CTA lives on the portfolio site, not here.
+const baseUrl = import.meta.env.BASE_URL;
+---
+
+<header class="w-full border-b border-ink-700/60 bg-ink-900/80 backdrop-blur">
+  <div class="mx-auto max-w-6xl px-6 py-4 flex items-center justify-between">
+    <a href={baseUrl} class="group flex items-center gap-3">
+      <!-- Inline SVG mark. Two strokes forming an abstract play/film symbol
+           in the mint accent. Stays crisp at any size and doesn't need a
+           separate file in /public. -->
+      <svg viewBox="0 0 32 32" class="w-8 h-8" aria-hidden="true">
+        <rect x="2" y="6" width="28" height="20" rx="4" fill="none" stroke="#10b981" stroke-width="2" />
+        <path d="M13 12 L22 16 L13 20 Z" fill="#10b981" />
+      </svg>
+      <span class="text-slate-100 font-semibold tracking-tight">
+        NiftyVid
+        <span class="text-slate-500 font-normal">by Igor Lima</span>
+      </span>
+    </a>
+
+    <nav class="flex items-center gap-4 text-sm">
+      <a
+        href="https://github.com/IgorCSIS/nifty-vid"
+        class="text-slate-400 hover:text-mint-glow transition"
+        target="_blank"
+        rel="noopener"
+      >
+        Source
+      </a>
+      <a
+        href="https://igorcsis.github.io/niftyai-portfolio/"
+        class="text-slate-400 hover:text-mint-glow transition"
+      >
+        Portfolio
+      </a>
+    </nav>
+  </div>
+</header>

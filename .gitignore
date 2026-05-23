@@ -1,0 +1,32 @@
+# Dependency directories — never commit
+node_modules/
+.pnpm-store/
+
+# Build output for the Astro site
+web/dist/
+web/.astro/
+
+# Cloudflare Wrangler local state
+worker/.wrangler/
+worker/dist/
+
+# Environment files (real secrets live here)
+# We DO commit .env.example so other devs know what variables are needed.
+.env
+.env.local
+.env.*.local
+.dev.vars
+
+# IDE / editor noise
+.vscode/
+.idea/
+*.swp
+
+# OS junk
+Thumbs.db
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*

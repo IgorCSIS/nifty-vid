@@ -1,0 +1,94 @@
+/*
+ * Global stylesheet. Tailwind utilities are the workhorse; this file holds
+ * the few things that are easier to express as plain CSS than as utility
+ * classes (resets, custom keyframes, scrollbar styling).
+ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    /* Dark by default. We don't bother with a light mode toggle because the
+     * NiftyAi family is dark-first across the board. */
+    color-scheme: dark;
+    background: theme("colors.ink.900");
+  }
+
+  body {
+    @apply min-h-screen bg-ink-900 text-slate-200 font-sans antialiased;
+    /* Subtle mesh gradient in the background. Done with two radial gradients
+     * rather than an image so it scales infinitely and adds zero bytes. */
+    background-image:
+      radial-gradient(circle at 18% 12%, rgba(16, 185, 129, 0.10), transparent 45%),
+      radial-gradient(circle at 82% 88%, rgba(52, 211, 153, 0.06), transparent 50%);
+    background-attachment: fixed;
+  }
+
+  /* Tighter scrollbar that fits the dark theme — webkit only, but degrades
+   * gracefully on Firefox (which uses the system scrollbar). */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: theme("colors.ink.900");
+  }
+  ::-webkit-scrollbar-thumb {
+    background: theme("colors.ink.700");
+    border-radius: 6px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: theme("colors.mint.dim");
+  }
+}
+
+@layer components {
+  /* Button reused on the generate action. Defined as a component class because
+   * it shows up in two places (the main CTA and the retry button on errors). */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 px-5 py-3 rounded-md
+           bg-mint text-ink-900 font-semibold tracking-tight
+           shadow-glow transition
+           hover:bg-mint-glow hover:-translate-y-0.5
+           active:translate-y-0
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md
+           bg-ink-800 text-slate-300 border border-ink-700
+           transition hover:border-mint-dim hover:text-mint-glow;
+  }
+
+  /* The dropzone uses border styles that change with drag state. Keeping them
+   * here so the JS layer just toggles a single class. */
+  .dropzone {
+    @apply relative grid place-items-center min-h-[280px] rounded-xl
+           border-2 border-dashed border-ink-700 bg-ink-800/60
+           transition cursor-pointer
+           hover:border-mint-dim hover:bg-ink-800;
+  }
+  .dropzone[data-active="true"] {
+    @apply border-mint bg-ink-800;
+  }
+
+  /* Soft pulsing dot used to indicate "generating". Pure CSS animation so it
+   * keeps running even while we're awaiting a long network call. */
+  .pulse-dot {
+    @apply inline-block w-2 h-2 rounded-full bg-mint;
+    animation: pulse-glow 1.4s ease-in-out infinite;
+  }
+
+  @keyframes pulse-glow {
+    0%, 100% {
+      box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6);
+      opacity: 1;
+    }
+    50% {
+      box-shadow: 0 0 0 8px rgba(16, 185, 129, 0);
+      opacity: 0.6;
+    }
+  }
+}

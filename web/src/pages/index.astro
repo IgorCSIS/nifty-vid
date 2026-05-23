@@ -1,0 +1,21 @@
+---
+// Single-page app. The whole site is this one page, by design.
+import Layout from "@/layouts/Layout.astro";
+import Header from "@/components/Header.astro";
+import Hero from "@/components/Hero.astro";
+import Studio from "@/components/Studio.astro";
+---
+
+<Layout>
+  <Header />
+  <main>
+    <Hero />
+    <Studio />
+  </main>
+  <footer class="border-t border-ink-700/60 mt-12">
+    <div class="mx-auto max-w-6xl px-6 py-8 text-xs text-slate-500 flex justify-between">
+      <span>NiftyVid &middot; experimental</span>
+      <span>Wan 2.2 inference courtesy of a public HF Space.</span>
+    </div>
+  </footer>
+</Layout>

@@ -1,0 +1,62 @@
+# Builds the Astro site in `web/` and deploys it to GitHub Pages on every push to main.
+# The Worker is deployed separately via `wrangler deploy` — this workflow only handles the static site.
+
+name: Deploy site to Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Pages deploys need these permissions on the GITHUB_TOKEN
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Only one deploy at a time. If you push twice quickly, the second push waits.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+
+      # PUBLIC_WORKER_URL is what the frontend uses to call the Cloudflare Worker.
+      # Set this in repo Settings -> Secrets and variables -> Actions -> Variables.
+      # In its absence the build still works, but the deployed site won't reach the Worker.
+      - run: pnpm build
+        env:
+          PUBLIC_WORKER_URL: ${{ vars.PUBLIC_WORKER_URL }}
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

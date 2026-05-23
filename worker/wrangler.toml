@@ -1,0 +1,27 @@
+# Wrangler config for the NiftyVid proxy Worker.
+#
+# `pnpm wrangler deploy` reads this file. The Worker holds no secrets in this
+# version (we hit a public HF Space, no API key), so the config is short.
+
+name = "nifty-vid"
+main = "src/index.ts"
+compatibility_date = "2025-05-01"
+
+# nodejs_compat lets us use a few Node-style APIs (Buffer, etc) inside the
+# Worker. We don't strictly need it today but it's a sensible default for
+# new Workers and harmless.
+compatibility_flags = ["nodejs_compat"]
+
+# Environment variables exposed to the Worker at runtime.
+# - ALLOWED_ORIGINS controls CORS. Defaults to permissive in dev, locked down in prod.
+# - HF_SPACE_BASE points at the Gradio Space we proxy to. Easy to swap if we
+#   ever move to a paid backend.
+[vars]
+ALLOWED_ORIGINS = "http://localhost:4321,https://igorcsis.github.io"
+HF_SPACE_BASE = "https://cbensimon-wan2-2-fp8da-aoti-preview2.hf.space"
+HF_FN_NAME = "generate_video"
+
+# Observability is free on Workers and saves headaches when something breaks
+# in production. `wrangler tail` will stream logs live.
+[observability]
+enabled = true

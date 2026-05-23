@@ -1,0 +1,46 @@
+---
+// Base layout shared by every page. Holds <head> metadata, fonts, and the
+// outer body shell. Pages slot their content into <slot />.
+//
+// Astro frontmatter (this code between the ---) runs on the server at build
+// time. The HTML below is what ships to the browser.
+
+import "@/styles/global.css";
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const {
+  title = "NiftyVid — image to video, free and open",
+  description = "Animate a still image with Wan 2.2. Drop a photo, type a prompt, get a short video.",
+} = Astro.props;
+
+// The base path is read from Astro's config (`/nifty-vid` in production,
+// `/` locally). Always use Astro.url.pathname or import.meta.env.BASE_URL
+// when linking to internal assets so paths work in both contexts.
+const baseUrl = import.meta.env.BASE_URL;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/svg+xml" href={`${baseUrl}favicon.svg`} />
+    <meta name="generator" content={Astro.generator} />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+
+    <!-- Open Graph / social previews. Even though this is a small project,
+         these tags make the difference between a link looking polished and
+         looking like a default-styled URL in Slack or Discord. -->
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+  </head>
+  <body>
+    <slot />
+  </body>
+</html>

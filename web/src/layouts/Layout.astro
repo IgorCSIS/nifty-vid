@@ -1,6 +1,6 @@
 ---
-// Base layout shared by every page. Holds <head> metadata, fonts, and the
-// outer body shell. Pages slot their content into <slot />.
+// Base layout shared by every page. Holds <head> metadata, fonts, theming,
+// and the outer body shell. Pages slot their content into <slot />.
 //
 // Astro frontmatter (this code between the ---) runs on the server at build
 // time. The HTML below is what ships to the browser.
@@ -10,17 +10,48 @@ import "@/styles/global.css";
 interface Props {
   title?: string;
   description?: string;
+  // Pages can override the OG image. Defaults to the project's main social
+  // card. Path is relative to the site's base URL.
+  ogImage?: string;
 }
 
+// The defaults are tuned for the homepage and for search engines. Keep the
+// title under ~60 characters and the description between 140 and 160 so
+// Google doesn't truncate either. Lead with the verb the user is trying to
+// accomplish ("Animate"), then the model ("Wan 2.2"), then the differentiator
+// ("free, in your browser"). That ordering matches how people actually search.
 const {
-  title = "NiftyVid, image to video, free and open",
-  description = "Animate a still image with Wan 2.2. Drop a photo, type a prompt, get a short video.",
+  title = "NiftyVid: animate an image with Wan 2.2, free and in your browser",
+  description = "Drop a photo, write a short prompt, get a few seconds of AI-generated video. Powered by Wan 2.2 image-to-video on a public Hugging Face Space. No signup, no card.",
+  ogImage = "og.png",
 } = Astro.props;
 
 // The base path is read from Astro's config (`/nifty-vid` in production,
 // `/` locally). Always use Astro.url.pathname or import.meta.env.BASE_URL
 // when linking to internal assets so paths work in both contexts.
 const baseUrl = import.meta.env.BASE_URL;
+
+// Build absolute URLs for OG tags. Social platforms ignore relative paths,
+// so this matters even for tiny projects. SITE is set in astro.config.mjs.
+const siteOrigin = Astro.site?.origin ?? "https://igorcsis.github.io";
+const pagePath = Astro.url.pathname;
+const canonical = new URL(pagePath, siteOrigin).toString();
+const absoluteOg = new URL(`${baseUrl}${ogImage}`, siteOrigin).toString();
+
+// JSON-LD structured data. Google reads this to render rich results in search,
+// and it's a cheap, low-risk win for any public site. We declare the project
+// as a SoftwareApplication so it can pick up the right icon and price.
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "NiftyVid",
+  url: canonical,
+  description,
+  applicationCategory: "MultimediaApplication",
+  operatingSystem: "Any (web)",
+  offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+  author: { "@type": "Person", name: "Igor Lima", url: "https://github.com/IgorCSIS" },
+};
 ---
 
 <!doctype html>
@@ -28,17 +59,52 @@ const baseUrl = import.meta.env.BASE_URL;
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="icon" type="image/svg+xml" href={`${baseUrl}favicon.svg`} />
     <meta name="generator" content={Astro.generator} />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#020617" />
+
     <title>{title}</title>
     <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
 
-    <!-- Open Graph / social previews. Even though this is a small project,
-         these tags make the difference between a link looking polished and
-         looking like a default-styled URL in Slack or Discord. -->
+    <!-- Keywords help niche search engines and AI crawlers even though Google
+         mostly ignores them. They cost nothing and occasionally help. -->
+    <meta
+      name="keywords"
+      content="image to video, AI video generator, Wan 2.2, Wan2.2, Hugging Face Space, free video AI, animate photo, image animation, text to video, open source video AI, NiftyAi"
+    />
+    <meta name="author" content="Igor Lima" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+
+    <!-- Favicons. The SVG covers modern browsers; the PNG is a fallback for
+         older platforms and for social cards that prefer raster. -->
+    <link rel="icon" type="image/svg+xml" href={`${baseUrl}favicon.svg`} />
+    <link rel="apple-touch-icon" href={`${baseUrl}og.png`} />
+
+    <!-- Open Graph (Facebook, LinkedIn, Slack, Discord). The image is the
+         single most important tag here: a good card more than doubles
+         click-through on shared links. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="NiftyVid by Igor Lima" />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
-    <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={absoluteOg} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="NiftyVid: image to video with Wan 2.2" />
+    <meta property="og:locale" content="en_US" />
+
+    <!-- Twitter / X. summary_large_image gives the wide hero card. -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={absoluteOg} />
+    <meta name="twitter:image:alt" content="NiftyVid: image to video with Wan 2.2" />
+
+    <!-- JSON-LD structured data for search engine rich results. set:html is
+         the Astro escape hatch that prevents the JSON from being HTML-escaped. -->
+    <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
   </head>
   <body>
     <slot />

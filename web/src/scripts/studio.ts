@@ -5,11 +5,14 @@
  *   1. User drops or picks an image. We preview it and stash the File object.
  *   2. User types a prompt and tweaks duration/steps (optional).
  *   3. User clicks "Generate". We POST the image + prompt to our Worker.
- *   4. Worker returns a job id. We poll until status is "done", then show video.
+ *   4. Worker uploads the image, submits the job, and streams the upstream
+ *      Gradio SSE back to us. We parse events as they arrive.
+ *   5. When we see "complete", we pull the video URL out and display it.
  *
- * The Worker handles all the messy parts: uploading the image to the HF Space,
- * calling the Gradio API, polling the SSE event stream, and giving us back a
- * playable URL. From here the contract is clean JSON in, clean JSON out.
+ * Why streaming: long generations (5s+ video) push past Cloudflare's per-call
+ * limit if the Worker tries to consume the SSE itself. By piping the upstream
+ * stream through, the Worker spends ~zero CPU and the browser holds the open
+ * connection, which has no comparable wall-clock cap.
  *
  * Why no framework: this is one form with about five interactive elements.
  * A vanilla module is faster to load, easier to read, and forces us to
@@ -201,18 +204,17 @@ generateBtn.addEventListener("click", async () => {
       }),
     );
 
-    // One shot. The Worker holds this connection open while the upstream
-    // Space queues, runs, and finishes. When the response lands, we have
-    // a playable URL. If the Worker times out, we'll catch it below and
-    // surface a sensible retry suggestion.
+    // Open the streaming connection. The Worker uploads + submits, then pipes
+    // the upstream Gradio SSE through to us. We consume events as they arrive.
     const res = await fetch(`${WORKER_URL}/generate`, {
       method: "POST",
       body: form,
     });
-    if (!res.ok) {
+    if (!res.ok || !res.body) {
       throw new Error(await readErrorMessage(res));
     }
-    const { video_url } = (await res.json()) as { video_url: string };
+
+    const video_url = await consumeSseUntilComplete(res.body);
 
     // Success.
     resultVideo.src = video_url;
@@ -255,6 +257,118 @@ function startLoadingMessages(): () => void {
     loadingMsg.textContent = messages[i]!;
   }, 8000);
   return () => window.clearInterval(handle);
+}
+
+/**
+ * Read the upstream Gradio SSE stream and return the video URL when the job
+ * finishes. Gradio v4 emits events shaped like:
+ *
+ *   event: generating
+ *   data: ...
+ *
+ *   event: complete
+ *   data: [{path, url, ...}, ..., seed]
+ *
+ *   event: error
+ *   data: "...message..."
+ *
+ * Events are blank-line delimited. We buffer raw bytes until we have a full
+ * event, parse it, and act. Heartbeats and generating events update the
+ * loading message but don't resolve.
+ */
+async function consumeSseUntilComplete(stream: ReadableStream<Uint8Array>): Promise<string> {
+  const reader = stream.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    // SSE event boundary is a blank line. Pull off completed events, keep the
+    // trailing partial chunk in the buffer for the next read.
+    const parts = buffer.split("\n\n");
+    buffer = parts.pop() ?? "";
+
+    for (const raw of parts) {
+      const evt = parseSseEvent(raw);
+      if (!evt) continue;
+
+      if (evt.name === "complete") {
+        // data is the function's return tuple: [video_file, file_again, seed].
+        // The first element is a Gradio FileData object containing `url`.
+        let payload: unknown;
+        try {
+          payload = JSON.parse(evt.data);
+        } catch {
+          throw new Error("Upstream returned malformed result payload.");
+        }
+        const first = Array.isArray(payload) ? payload[0] : null;
+        const url = extractVideoUrl(first);
+        if (!url) throw new Error("Job finished but no video URL was returned.");
+        return url;
+      }
+
+      if (evt.name === "error") {
+        // Errors come through as a JSON string in most cases.
+        let msg = evt.data;
+        try {
+          const parsed = JSON.parse(evt.data);
+          if (typeof parsed === "string") msg = parsed;
+        } catch {
+          /* leave msg as the raw data */
+        }
+        throw new Error(msg || "Upstream reported an error.");
+      }
+
+      // Anything else (generating, heartbeat, estimation) is just a sign of
+      // life. We don't act on it, the rotating loading message keeps the
+      // UI feeling alive.
+    }
+  }
+
+  // Stream closed without a "complete" event. This usually means the upstream
+  // hit its own queue/wall-clock limit or the connection dropped.
+  throw new Error("Connection closed before the video finished. Try again or shorten the duration.");
+}
+
+/** Parse a single SSE event chunk into { name, data }. */
+function parseSseEvent(raw: string): { name: string; data: string } | null {
+  let name = "message";
+  const dataLines: string[] = [];
+  for (const line of raw.split("\n")) {
+    if (line.startsWith("event:")) {
+      name = line.slice(6).trim();
+    } else if (line.startsWith("data:")) {
+      dataLines.push(line.slice(5).trim());
+    }
+  }
+  if (dataLines.length === 0) return null;
+  return { name, data: dataLines.join("\n") };
+}
+
+// Hardcoded because the browser doesn't know the Space URL and we'd rather
+// not round-trip just to fall back. If the upstream Space ever moves, this is
+// the one constant to update.
+const HF_SPACE_BASE = "https://cbensimon-wan2-2-fp8da-aoti-preview2.hf.space";
+
+/**
+ * Get a playable absolute URL from whatever Gradio returned. v4 wraps files
+ * in FileData objects with `url` and `path`; older code returns bare strings.
+ * Belt-and-suspenders so a Gradio upgrade upstream doesn't silently break us.
+ */
+function extractVideoUrl(fileData: unknown): string | null {
+  if (!fileData) return null;
+  if (typeof fileData === "string") {
+    return `${HF_SPACE_BASE}/gradio_api/file=${fileData}`;
+  }
+  if (typeof fileData === "object") {
+    const f = fileData as { url?: string; path?: string };
+    if (f.url) return f.url;
+    if (f.path) return `${HF_SPACE_BASE}/gradio_api/file=${f.path}`;
+  }
+  return null;
 }
 
 /**

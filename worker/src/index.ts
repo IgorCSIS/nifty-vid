@@ -80,9 +80,17 @@ export default {
 } satisfies ExportedHandler<Env>;
 
 /**
- * Core flow: upload image, submit job, await result.
- * Each step is its own helper so we can test/swap pieces independently
- * if the upstream API shifts.
+ * Core flow: upload image, submit job, then stream the upstream SSE through
+ * to the browser. Worker does the fast bits (upload, submit) and then steps
+ * out of the way for the slow bit (waiting for the video).
+ *
+ * Why streaming instead of holding the request: Cloudflare Workers count
+ * wall-clock time when the Worker reads from a fetch response. For long
+ * generations (5s+ video) that pushed us over the limit. By returning the
+ * upstream body as our response body, Cloudflare just pipes bytes between
+ * the upstream and the browser, no CPU charged to us, no timeout we can hit.
+ * The browser then parses SSE events and finds the "complete" event to grab
+ * the video URL.
  */
 async function handleGenerate(req: Request, env: Env): Promise<Response> {
   const form = await req.formData();
@@ -93,18 +101,37 @@ async function handleGenerate(req: Request, env: Env): Promise<Response> {
     return jsonResponse({ error: "Missing 'image' form field" }, 400);
   }
   if (image.size > 8 * 1024 * 1024) {
-    // We re-validate server-side; trusting the client is how you get DoS'd.
     return jsonResponse({ error: "Image must be 8 MB or smaller" }, 413);
   }
 
   const userParams: UserParams =
     typeof paramsRaw === "string" ? safeJsonParse(paramsRaw) : {};
 
+  // Fast steps. Each is a single short HTTP call, well under any limit.
   const imageRef = await uploadImageToSpace(image, env);
   const eventId = await submitJob(imageRef, image.name, userParams, env);
-  const videoUrl = await awaitResult(eventId, env);
 
-  return jsonResponse({ video_url: videoUrl });
+  // Open the SSE stream upstream. Don't consume the body — we hand it
+  // straight to the browser.
+  const upstream = await fetch(
+    `${env.HF_SPACE_BASE}/gradio_api/call/${env.HF_FN_NAME}/${eventId}`,
+    { method: "GET", headers: { Accept: "text/event-stream" } },
+  );
+  if (!upstream.ok || !upstream.body) {
+    throw new Error(`Could not open result stream (${upstream.status}).`);
+  }
+
+  // Return the upstream body directly. Cloudflare will pipe it. We add the
+  // right headers so EventSource-style readers Just Work, and we disable
+  // proxy/CDN buffering so events arrive promptly.
+  return new Response(upstream.body, {
+    status: 200,
+    headers: {
+      "Content-Type": "text/event-stream; charset=utf-8",
+      "Cache-Control": "no-cache, no-transform",
+      "X-Accel-Buffering": "no",
+    },
+  });
 }
 
 /**
@@ -195,105 +222,10 @@ async function submitJob(
   return body.event_id;
 }
 
-/**
- * Listen on the SSE stream until the job finishes. The Gradio v4 /call/{fn}/{id}
- * endpoint emits events like:
- *
- *   event: generating
- *   data: ...
- *
- *   event: complete
- *   data: [video_path, file_path, seed]
- *
- *   event: error
- *   data: "message"
- *
- * We accumulate raw bytes and parse out complete events (delimited by blank lines).
- * On "complete" we extract the video URL; on "error" we throw.
- */
-async function awaitResult(eventId: string, env: Env): Promise<string> {
-  const res = await fetch(`${env.HF_SPACE_BASE}/gradio_api/call/${env.HF_FN_NAME}/${eventId}`, {
-    method: "GET",
-    headers: { Accept: "text/event-stream" },
-  });
-  if (!res.ok || !res.body) {
-    throw new Error(`Could not open result stream (${res.status}).`);
-  }
-
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-
-    // SSE events are separated by a blank line. Split, keep the trailing
-    // partial chunk in `buffer` for the next iteration.
-    const chunks = buffer.split("\n\n");
-    buffer = chunks.pop() ?? "";
-
-    for (const chunk of chunks) {
-      const event = parseSseEvent(chunk);
-      if (!event) continue;
-
-      if (event.name === "complete") {
-        // data is the function's return tuple: [video_path, file_path, seed].
-        // video_path is itself a FileData object on Gradio v4.
-        const payload = safeJsonParse(event.data);
-        const videoFileData = Array.isArray(payload) ? payload[0] : null;
-        const url = extractVideoUrl(videoFileData, env);
-        if (!url) throw new Error("Job completed but no video URL was returned.");
-        return url;
-      }
-      if (event.name === "error") {
-        // data is usually a JSON-encoded string with the error message.
-        const msg = safeJsonParse(event.data);
-        throw new Error(typeof msg === "string" ? msg : "Upstream error.");
-      }
-      // Other events ("generating", "heartbeat") we ignore, they're useful for
-      // a streaming UI but we're doing single-shot for now.
-    }
-  }
-
-  throw new Error("Stream ended before a result arrived.");
-}
-
-/** Parse a single SSE event chunk into { name, data }. Returns null if malformed. */
-function parseSseEvent(raw: string): { name: string; data: string } | null {
-  let name = "message";
-  const dataLines: string[] = [];
-  for (const line of raw.split("\n")) {
-    if (line.startsWith("event:")) {
-      name = line.slice(6).trim();
-    } else if (line.startsWith("data:")) {
-      dataLines.push(line.slice(5).trim());
-    }
-  }
-  if (dataLines.length === 0) return null;
-  return { name, data: dataLines.join("\n") };
-}
-
-/**
- * Pull a usable absolute video URL out of whatever Gradio returned.
- * Gradio v4 returns FileData objects; older code might return a bare string.
- * Defensive coding here because the upstream representation has shifted across
- * Gradio versions and we want this to keep working through minor upgrades.
- */
-function extractVideoUrl(fileData: unknown, env: Env): string | null {
-  if (!fileData) return null;
-  if (typeof fileData === "string") {
-    // Bare string path, synthesize the absolute URL.
-    return `${env.HF_SPACE_BASE}/gradio_api/file=${fileData}`;
-  }
-  if (typeof fileData === "object") {
-    const f = fileData as { url?: string; path?: string };
-    if (f.url) return f.url;
-    if (f.path) return `${env.HF_SPACE_BASE}/gradio_api/file=${f.path}`;
-  }
-  return null;
-}
+// SSE parsing and video-URL extraction used to live here, but they moved to
+// the browser when we switched to streaming pass-through. Now the Worker just
+// uploads, submits, and pipes; the browser does the SSE event parsing and
+// finds the "complete" payload itself.
 
 // ---------- Generic helpers ----------
 

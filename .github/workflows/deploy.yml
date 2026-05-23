@@ -26,15 +26,18 @@ jobs:
       run:
         working-directory: web
     steps:
-      - uses: actions/checkout@v4
+      # v5 of these actions run on Node 24, which is the path forward as of
+      # mid-2026. Bumping early avoids the deprecation warnings GitHub started
+      # emitting and keeps the workflow forward-compatible.
+      - uses: actions/checkout@v5
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v5
         with:
           version: 9
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
           cache-dependency-path: web/pnpm-lock.yaml
 
@@ -47,7 +50,7 @@ jobs:
         env:
           PUBLIC_WORKER_URL: ${{ vars.PUBLIC_WORKER_URL }}
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v4
         with:
           path: web/dist
 
@@ -59,4 +62,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5

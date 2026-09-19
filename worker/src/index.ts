@@ -111,7 +111,7 @@ async function handleGenerate(req: Request, env: Env): Promise<Response> {
   const imageRef = await uploadImageToSpace(image, env);
   const eventId = await submitJob(imageRef, image.name, userParams, env);
 
-  // Open the SSE stream upstream. Don't consume the body — we hand it
+  // Open the SSE stream upstream. Don't consume the body, we hand it
   // straight to the browser.
   const upstream = await fetch(
     `${env.HF_SPACE_BASE}/gradio_api/call/${env.HF_FN_NAME}/${eventId}`,

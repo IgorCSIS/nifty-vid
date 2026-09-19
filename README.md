@@ -83,7 +83,7 @@ After the first Worker deploy, set the resulting URL as a `PUBLIC_WORKER_URL` re
 
 ## Limitations
 
-- Wan 2.2 caps generations at about 5 seconds at ~720p. Long shots and complex multi-character scenes are out of scope.
+- The duration slider caps at 4.5 seconds at ~720p. The free upstream Space hits its wall-clock limit around 5 seconds and returns nothing, so the cap sits just under it. Long shots and complex multi-character scenes are out of scope.
 - The free HF Space is shared, so first calls cold-start (60 to 120 seconds) and peak hours queue up.
 - The upstream Space could change or disappear. If it does, the Worker's `HF_SPACE_BASE` env var is the only line to update.
 - Workers free tier has wall-clock limits that occasionally clip very long generations. Retry usually works.
@@ -104,7 +104,7 @@ After the first Worker deploy, set the resulting URL as a `PUBLIC_WORKER_URL` re
 
 ## License
 
-MIT. See [LICENSE](LICENSE) if present, otherwise consider this repo MIT until I add the file.
+MIT. See [LICENSE](LICENSE).
 
 ---
 

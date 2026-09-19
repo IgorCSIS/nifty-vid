@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 638" width="1200" height="638" role="img" aria-label="A sequence diagram showing the Worker doing four short calls and then handing the upstream event stream back to the browser without reading it.">
+  <title>The handoff</title>
+  <desc>The browser posts an image and parameters to the Worker. The Worker uploads the image to the Gradio Space, submits the job, receives an event id, opens the server-sent event stream for it, and returns that response body as its own without reading a byte. The events then flow from the Space through Cloudflare to the browser, which parses the complete event and pulls the video URL out of it.</desc>
+  <defs>
+    <marker id="nv-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#34D399"/></marker>
+    <marker id="nv-r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#64748B"/></marker>
+  </defs>
+  <rect width="1200" height="638" rx="16" fill="#020617"/>
+  <rect x="0.5" y="0.5" width="1199" height="637" rx="15.5" fill="none" stroke="#1E293B"/>
+  <text x="48" y="42" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="17" font-weight="700" fill="#F8FAFC">The Worker returns a stream it never reads.</text>
+  <text x="48" y="66" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="13" fill="#94A3B8">Four short calls, then it hands the upstream response body straight back and steps out. A sixty second generation costs it the same as a one second one.</text>
+  <rect x="48" y="482" width="1104" height="92" rx="10" fill="#08131F"/>
+  <rect x="60" y="92" width="260" height="52" rx="10" fill="#0B1220" stroke="#1E293B"/>
+  <text x="190" y="114" text-anchor="middle" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="700" fill="#F8FAFC">the browser</text>
+  <text x="190" y="133" text-anchor="middle" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" fill="#94A3B8">GitHub Pages</text>
+  <path d="M190 148 L190 576" stroke="#2A3A4F" stroke-width="1.5" stroke-dasharray="4 5"/>
+  <rect x="470" y="92" width="260" height="52" rx="10" fill="#0B1220" stroke="#1E293B"/>
+  <text x="600" y="114" text-anchor="middle" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="700" fill="#F8FAFC">the Worker</text>
+  <text x="600" y="133" text-anchor="middle" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" fill="#94A3B8">Cloudflare, free tier</text>
+  <path d="M600 148 L600 576" stroke="#2A3A4F" stroke-width="1.5" stroke-dasharray="4 5"/>
+  <rect x="880" y="92" width="260" height="52" rx="10" fill="#0B1220" stroke="#1E293B"/>
+  <text x="1010" y="114" text-anchor="middle" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="700" fill="#F8FAFC">the HF Space</text>
+  <text x="1010" y="133" text-anchor="middle" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" fill="#94A3B8">Gradio, shared GPU</text>
+  <path d="M1010 148 L1010 576" stroke="#2A3A4F" stroke-width="1.5" stroke-dasharray="4 5"/>
+  <rect x="594" y="186" width="12" height="272" rx="4" fill="#10B981"/>
+  <path d="M197 192 L593 192" stroke="#34D399" stroke-width="2" fill="none" marker-end="url(#nv-a)"/>
+  <text x="395" y="183" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="10.5" fill="#F8FAFC">POST /generate</text>
+  <text x="395" y="209" text-anchor="middle" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="10" fill="#94A3B8">one multipart form: the image, and the params as JSON</text>
+  <path d="M607 246 L1003 246" stroke="#34D399" stroke-width="2" fill="none" marker-end="url(#nv-a)"/>
+  <text x="805" y="237" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="10.5" fill="#F8FAFC">POST /gradio_api/upload</text>
+  <path d="M1003 284 L607 284" stroke="#64748B" stroke-width="2" fill="none" stroke-dasharray="6 4" marker-end="url(#nv-r)"/>
+  <text x="805" y="275" text-anchor="middle" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="10.5" fill="#94A3B8">a path under /tmp/gradio</text>
+  <path d="M607 324 L1003 324" stroke="#34D399" stroke-width="2" fill="none" marker-end="url(#nv-a)"/>
+  <text x="805" y="315" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="10.5" fill="#F8FAFC">POST /gradio_api/call/generate_video</text>
+  <path d="M1003 362 L607 362" stroke="#64748B" stroke-width="2" fill="none" stroke-dasharray="6 4" marker-end="url(#nv-r)"/>
+  <text x="805" y="353" text-anchor="middle" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="10.5" fill="#94A3B8">event_id</text>
+  <path d="M607 404 L1003 404" stroke="#34D399" stroke-width="2" fill="none" marker-end="url(#nv-a)"/>
+  <text x="805" y="395" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="10.5" fill="#F8FAFC">GET /gradio_api/call/generate_video/{event_id}</text>
+  <text x="805" y="421" text-anchor="middle" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="10" fill="#94A3B8">Accept: text/event-stream</text>
+  <path d="M593 452 L197 452" stroke="#34D399" stroke-width="2" fill="none" marker-end="url(#nv-a)"/>
+  <text x="395" y="443" text-anchor="middle" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="10.5" fill="#F8FAFC">return new Response(upstream.body)</text>
+  <text x="395" y="469" text-anchor="middle" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="10" fill="#94A3B8">unread, with the SSE headers set on the way out</text>
+  <text x="600" y="516" text-anchor="middle" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="600" fill="#34D399">generating, heartbeat, and finally complete</text>
+  <path d="M1003 534 L197 534" stroke="#34D399" stroke-width="2" fill="none" marker-end="url(#nv-a)"/>
+  <text x="600" y="558" text-anchor="middle" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="10.5" fill="#94A3B8">Cloudflare pipes the bytes between two sockets it already holds. The Worker is not in this line.</text>
+  <text x="48" y="602" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="12.5" fill="#94A3B8">The browser does the SSE parsing, finds the complete event, and pulls the video URL out of the first element of the return tuple.</text>
+  <text x="48" y="624" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="12.5" fill="#94A3B8">An earlier version read the stream inside the Worker and returned JSON, which kept it awake and billed for the whole generation. That is the trade.</text>
+</svg>

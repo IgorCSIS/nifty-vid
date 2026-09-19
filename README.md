@@ -30,7 +30,7 @@ The site itself is static and hosted on GitHub Pages, so there's nothing to inst
 - Dark mode interface tuned for long sessions
 - Download generated videos as MP4
 - Zero tracking, no signup, no API keys to manage
-- Friendly error messages that surface upstream queue position and failures
+- Friendly error messages that surface what the upstream actually said, rather than a generic failure
 
 ## Tech stack
 
@@ -40,7 +40,7 @@ The site itself is static and hosted on GitHub Pages, so there's nothing to inst
 | Hosting | GitHub Pages (static) |
 | Edge proxy | Cloudflare Worker (free tier) |
 | Inference | Wan 2.2 image-to-video, on a public Hugging Face Space |
-| Tooling | pnpm 11, Wrangler 3, GitHub Actions |
+| Tooling | pnpm 9, Wrangler 3, GitHub Actions |
 
 ## Architecture
 
@@ -51,9 +51,25 @@ The site itself is static and hosted on GitHub Pages, so there's nothing to inst
 
 The Worker exists for two reasons. Browsers can't reliably call Hugging Face Spaces because of CORS, and we want one stable URL we control so the upstream backend can change without redeploying the static site. Today the Worker proxies to a public Space; tomorrow it could swap to fal.ai, Replicate, or a private Space without touching the frontend.
 
+### The handoff
+
+<p align="center">
+  <img src="assets/handoff.svg" alt="A sequence diagram. The browser posts one multipart form to the Worker. The Worker uploads the image to the Gradio Space, submits the job, gets an event id back, opens the server-sent event stream for it, and returns that response body as its own without reading it. The events then flow from the Space through Cloudflare to the browser, which parses the complete event and pulls the video URL out." width="880">
+</p>
+
+The Worker does four short calls and then gets out of the way. It opens the
+upstream event stream and hands that response body back as its own, unread, so
+Cloudflare is just piping bytes between two sockets it already holds. A sixty
+second generation costs the Worker the same as a one second one.
+
+The price is that the browser has to speak SSE. `web/src/scripts/studio.ts`
+buffers the stream, splits it on blank lines, and waits for the `complete`
+event to pull the video URL out of the return tuple. That file and
+`worker/src/index.ts` are two halves of one contract.
+
 ## Run locally
 
-You need Node 20+, [pnpm](https://pnpm.io/) 11+, and a GitHub clone of this repo.
+You need Node 20+, [pnpm](https://pnpm.io/) 9+, and a GitHub clone of this repo. Both lockfiles are v9, which is what CI installs with.
 
 ```powershell
 # Frontend (Astro dev server on :4321)
@@ -71,7 +87,7 @@ Open http://localhost:4321 and try a generation. The frontend reads `PUBLIC_WORK
 
 ## Deploy
 
-The static site auto-deploys to GitHub Pages on every push to `main` via [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml). The Worker is deployed manually with Wrangler:
+The static site auto-deploys to GitHub Pages on every push to `main` via [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml). The Worker is typechecked by [`.github/workflows/worker.yml`](.github/workflows/worker.yml) but deployed manually with Wrangler:
 
 ```powershell
 cd worker
@@ -83,7 +99,7 @@ After the first Worker deploy, set the resulting URL as a `PUBLIC_WORKER_URL` re
 
 ## Limitations
 
-- The duration slider caps at 4.5 seconds at ~720p. The free upstream Space hits its wall-clock limit around 5 seconds and returns nothing, so the cap sits just under it. Long shots and complex multi-character scenes are out of scope.
+- Duration caps at 4.5 seconds at ~720p, in the slider and again in the Worker. The free upstream Space hits its wall-clock limit around 5 seconds and returns nothing, so the cap sits just under it, and it is enforced at the public endpoint rather than only in the page. Long shots and complex multi-character scenes are out of scope.
 - The free HF Space is shared, so first calls cold-start (60 to 120 seconds) and peak hours queue up.
 - The upstream Space could change or disappear. If it does, the Worker's `HF_SPACE_BASE` env var is the only line to update.
 - Workers free tier has wall-clock limits that occasionally clip very long generations. Retry usually works.

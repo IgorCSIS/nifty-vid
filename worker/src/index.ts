@@ -5,9 +5,11 @@
  *   1. Receives a POST from the browser with a multipart form (image + JSON params).
  *   2. Uploads the image to the upstream Gradio Space's /gradio_api/upload endpoint.
  *   3. Calls /gradio_api/call/generate_video to queue a job and get an event_id.
- *   4. Opens the SSE event stream for that event_id, reads events until the job
- *      finishes ("complete") or errors out.
- *   5. Returns a JSON response with the absolute video URL on success.
+ *   4. Opens the SSE event stream for that event_id and hands the response body
+ *      straight back to the browser without reading a byte of it.
+ *
+ * There is no step 5. The Worker never sees the video URL, because the event
+ * that carries it is parsed in the browser.
  *
  * Why we need this:
  *   - HF Spaces don't reliably allow cross-origin requests from arbitrary domains,
@@ -18,11 +20,14 @@
  *   - We get one tidy place to set timeouts, retries, and origin allowlists.
  *
  * Design notes:
- *   - This is a single synchronous request: the browser sends one POST and waits
- *     for the video URL. Workers have a free-tier wall-clock budget that can be
- *     tight for very long video generations. If we ever need 90s+ generations,
- *     swap to a streaming response (Worker pipes the upstream SSE through to
- *     the browser) so the connection stays alive without accumulating CPU time.
+ *   - The handoff is the whole design. An earlier version read the stream here
+ *     and returned JSON, which meant the Worker was awake for the entire
+ *     generation and burning wall-clock budget on a free plan for the privilege
+ *     of waiting. Returning the upstream body as this response's body makes
+ *     Cloudflare pipe bytes between two sockets it already owns, so a sixty
+ *     second generation costs the same as a one second one.
+ *   - The cost of that is a contract: the browser now has to understand SSE.
+ *     web/src/scripts/studio.ts is the other half of this file.
  */
 
 // Worker env vars come from wrangler.toml [vars]. Marked `readonly` since
@@ -94,7 +99,11 @@ export default {
  */
 async function handleGenerate(req: Request, env: Env): Promise<Response> {
   const form = await req.formData();
-  const image = form.get("image");
+  // workers-types declares FormData.get as returning `string | null`, which is
+  // narrower than the runtime: a file part really does come back as a File.
+  // Going through `unknown` lets the instanceof below do the narrowing instead
+  // of a declaration that is missing a case.
+  const image = form.get("image") as unknown;
   const paramsRaw = form.get("params");
 
   if (!(image instanceof File)) {
@@ -104,8 +113,13 @@ async function handleGenerate(req: Request, env: Env): Promise<Response> {
     return jsonResponse({ error: "Image must be 8 MB or smaller" }, 413);
   }
 
+  // safeJsonParse hands back whatever was in the field, and "null", "5" and
+  // "\"hi\"" are all valid JSON. Assigning any of those straight through meant
+  // the next line could read .prompt off a null and throw a 500 at a caller
+  // who only sent a slightly wrong body.
+  const parsed = typeof paramsRaw === "string" ? safeJsonParse(paramsRaw) : null;
   const userParams: UserParams =
-    typeof paramsRaw === "string" ? safeJsonParse(paramsRaw) : {};
+    parsed !== null && typeof parsed === "object" ? (parsed as UserParams) : {};
 
   // Fast steps. Each is a single short HTTP call, well under any limit.
   const imageRef = await uploadImageToSpace(image, env);
@@ -194,7 +208,12 @@ async function submitJob(
     params.prompt?.trim() || "make this image come alive, cinematic motion, smooth animation",
     clampInt(params.steps ?? 6, 1, 12),
     DEFAULT_NEGATIVE_PROMPT,
-    clampFloat(params.duration_seconds ?? 3.5, 0.5, 10),
+    // Upper bound matches the slider in web/src/components/Studio.astro. The
+    // free Space hits its wall-clock limit around five seconds and returns
+    // nothing at all, so anything above this is a request for a timeout. The
+    // Worker is the public endpoint, not the slider, so the cap belongs here
+    // too rather than only in the page.
+    clampFloat(params.duration_seconds ?? 3.5, 0.5, 4.5),
     1,    // guidance_scale (kept at 1, higher values double GPU usage for marginal gains here)
     1,    // guidance_scale_2
     42,   // seed (ignored when randomize_seed=true)

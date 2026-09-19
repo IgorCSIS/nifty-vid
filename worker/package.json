@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
     "deploy": "wrangler deploy",
     "tail": "wrangler tail",
     "types": "wrangler types"

@@ -1,0 +1,60 @@
+name: no AI attribution
+
+# Fails the build if any AI-tool attribution reaches this repository.
+#
+# This exists because instructions in a markdown file are advisory: a tool
+# that appends a footer does not read them. A check that fails is not
+# advisory. The patterns below are exact attribution strings, not the words
+# "claude" or "anthropic", so a repository that legitimately talks about an
+# API it calls is unaffected.
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch: {}
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Tracked files
+        run: |
+          set -o pipefail
+          # The two files that define and enforce this rule quote the banned
+          # strings, so they are excluded or the check flags itself.
+          if git grep -nI -E 'Generated with \[?Claude Code|claude\.ai/code|claude\.com/claude-code|Co-[Aa]uthored-[Bb]y: *Claude|Claude-Session:|noreply@anthropic\.com' \
+               -- . ':(exclude)CONVENTIONS.md' ':(exclude).github/workflows/no-ai-attribution.yml' ; then
+            echo "::error::AI-tool attribution found in tracked files. Remove it before merging."
+            exit 1
+          fi
+          echo "Tracked files clean."
+
+      - name: Commit messages
+        run: |
+          if git log --all --format='%B' \
+            | grep -n -E 'Generated with \[?Claude Code|claude\.ai/code|claude\.com/claude-code|Co-[Aa]uthored-[Bb]y: *Claude|Claude-Session:' ; then
+            echo "::error::AI-tool attribution found in a commit message."
+            exit 1
+          fi
+          echo "Commit messages clean."
+
+      - name: Commit identities
+        run: |
+          if git log --all --format='%an <%ae>%n%cn <%ce>' | sort -u | grep -n -E '@anthropic\.com|^Claude <' ; then
+            echo "::error::A commit is authored or committed by an AI tool identity."
+            exit 1
+          fi
+          echo "Commit identities clean."
+
+      - name: Branch names
+        run: |
+          if git for-each-ref --format='%(refname:short)' refs/remotes/origin \
+            | grep -n -E '(^|/)(claude|anthropic)(/|-|$)' ; then
+            echo "::error::A branch is named after an AI tool. Rename or delete it."
+            exit 1
+          fi
+          echo "Branch names clean."

@@ -24,10 +24,12 @@ jobs:
       - name: Tracked files
         run: |
           set -o pipefail
-          # The two files that define and enforce this rule quote the banned
-          # strings, so they are excluded or the check flags itself.
+          # This file is the only exclusion. It is the one place in the repo
+          # that writes the banned strings out, because a check cannot match
+          # a pattern it will not name. CONVENTIONS.md describes the rule
+          # without quoting any of them, so it is scanned like everything else.
           if git grep -nI -E 'Generated with \[?Claude Code|claude\.ai/code|claude\.com/claude-code|Co-[Aa]uthored-[Bb]y: *Claude|Claude-Session:|noreply@anthropic\.com' \
-               -- . ':(exclude)CONVENTIONS.md' ':(exclude).github/workflows/no-ai-attribution.yml' ; then
+               -- . ':(exclude).github/workflows/no-ai-attribution.yml' ; then
             echo "::error::AI-tool attribution found in tracked files. Remove it before merging."
             exit 1
           fi

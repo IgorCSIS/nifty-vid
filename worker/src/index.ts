@@ -67,6 +67,13 @@ export default {
     }
 
     if (req.method === "POST" && url.pathname === "/generate") {
+      // CORS only stops browsers from reading the answer; it does not stop a
+      // script from calling us. Refuse callers that are not the site itself.
+      // A missing or foreign Origin is refused. This is a first gate, not a
+      // rate limit: a script can still forge the header.
+      if (!isAllowedOrigin(origin, env)) {
+        return jsonResponse({ error: "Forbidden" }, 403);
+      }
       try {
         const result = await handleGenerate(req, env);
         return withCors(result, origin, env);
@@ -279,10 +286,14 @@ function jsonResponse(body: unknown, status = 200): Response {
  * send credentials if we ever need that, and keeps us off "tricked into being
  * an open proxy" Status Hacker News posts.
  */
-function withCors(res: Response, origin: string, env: Env): Response {
+function isAllowedOrigin(origin: string, env: Env): boolean {
   const allowed = env.ALLOWED_ORIGINS.split(",").map((s) => s.trim());
+  return origin !== "" && allowed.includes(origin);
+}
+
+function withCors(res: Response, origin: string, env: Env): Response {
   const headers = new Headers(res.headers);
-  if (origin && allowed.includes(origin)) {
+  if (isAllowedOrigin(origin, env)) {
     headers.set("Access-Control-Allow-Origin", origin);
     headers.set("Vary", "Origin");
   }
